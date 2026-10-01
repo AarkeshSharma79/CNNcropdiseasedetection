@@ -1,207 +1,93 @@
 import { useState } from "react";
+import axios from "axios";
 import "./App.css";
 
 function App() {
-  const [image, setImage] = useState(null);
-  const [preview, setPreview] = useState(null);
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
+
+  const [url, setUrl] = useState("");
+
+  const [report, setReport] = useState(null);
+
   const [error, setError] = useState("");
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
+  const [loading, setLoading] = useState(false);
 
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setError("Please select a valid image.");
-      return;
-    }
-
-    setImage(file);
-    setPreview(URL.createObjectURL(file));
-    setResult(null);
-    setError("");
-  };
-
-  const predictDisease = async () => {
-    if (!image) {
-      setError("Please select an image first.");
-      return;
-    }
+  const audit = async () => {
 
     setLoading(true);
-    setError("");
-    setResult(null);
 
-    const formData = new FormData();
-    formData.append("file", image);
+    setError("");
+
+    setReport(null);
 
     try {
-      const response = await fetch(
-        "http://localhost:8000/api/predict",
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
 
-      const data = await response.json();
+      const res = await axios.post("https://website-auditor-jha9.onrender.com/audit", {
+        url
+      });
 
-      if (!response.ok) {
-        throw new Error(data.error || "Prediction failed");
-      }
-
-      setResult(data);
+      setReport(res.data);
 
     } catch (err) {
-      console.error(err);
+
       setError(
-        err.message ||
-        "Unable to connect to the prediction server."
+        err.response?.data?.error ||
+          "Something went wrong"
       );
-    } finally {
-      setLoading(false);
+
     }
+
+    setLoading(false);
+
   };
 
-
-
   return (
-    <div className="app">
+    <div className="container">
 
-      <header className="header">
-        <h1>🌱 Crop Disease Detection</h1>
-        <p>
-          Upload a crop leaf image and let AI identify the disease.
+      <h1>Website Auditor</h1>
+
+      <input
+        type="text"
+        placeholder="https://example.com"
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+      />
+
+      <button onClick={audit}>
+        Audit
+      </button>
+
+      {loading && <p>Loading...</p>}
+
+      {error && (
+        <p className="error">
+          {error}
         </p>
-      </header>
+      )}
 
-      <main className="container">
+      {report && (
 
-        {/* Upload Card */}
         <div className="card">
 
-          <h2>Upload Crop Image</h2>
+          <h2>Audit Report</h2>
 
-          <label className="upload-box">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-            />
+          <p><b>HTTP Status:</b> {report.status}</p>
 
-            {preview ? (
-              <img
-                src={preview}
-                alt="Crop preview"
-                className="preview"
-              />
-            ) : (
-              <div className="upload-content">
-                <span className="upload-icon">📷</span>
-                <p>Click to upload an image</p>
-                <small>PNG, JPG, JPEG</small>
-              </div>
-            )}
-          </label>
+          <p><b>Response Time:</b> {report.responseTime} ms</p>
 
-          {image && (
-            <p className="filename">
-              Selected: {image.name}
-            </p>
-          )}
+          <p><b>Title:</b> {report.title}</p>
 
-          <button
-            className="predict-button"
-            onClick={predictDisease}
-            disabled={!image || loading}
-          >
-            {loading ? "🔄 Analyzing..." : "🔍 Detect Disease"}
-          </button>
+          <p><b>Meta Description:</b> {report.metaDescription}</p>
 
-          {error && (
-            <div className="error">
-              {error}
-            </div>
-          )}
+          <p><b>H1 Count:</b> {report.h1Count}</p>
+
+          <p><b>Images Missing Alt:</b> {report.missingAlt}</p>
+
+          <p><b>Approx Word Count:</b> {report.wordCount}</p>
 
         </div>
 
-        {/* Result */}
-        {result && result.success && (
-          <div className="result-card">
-
-            <h2>Prediction Result</h2>
-
-            <div className="main-result">
-
-              <p className="label">
-                Detected Disease
-              </p>
-
-              <h3>
-                {result.disease}
-              </h3>
-
-              <div className="confidence">
-                <span>Confidence</span>
-                <strong>
-                  {result.confidence}%
-                </strong>
-              </div>
-
-              <div className="progress">
-                <div
-                  className="progress-bar"
-                  style={{
-                    width: `${result.confidence}%`,
-                  }}
-                />
-              </div>
-
-            </div>
-
-            <div className="top-results">
-
-              <h3>Top Predictions</h3>
-
-              {result.top_predictions.map(
-                (item, index) => (
-                  <div
-                    className="prediction"
-                    key={index}
-                  >
-
-                    <div>
-                      <strong>
-                        {index + 1}. {item.disease}
-                      </strong>
-                    </div>
-
-                    <span>
-                      {item.confidence}%
-                    </span>
-
-                  </div>
-                )
-              )}
-
-            </div>
-
-          </div>
-        )}
-
-      </main>
-
-      <footer>
-        <p>
-          Crop Disease Detection using EfficientNetB0
-        </p>
-        <p>
-          41 Disease Classes
-        </p>
-      </footer>
+      )}
 
     </div>
   );
